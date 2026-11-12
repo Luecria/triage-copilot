@@ -1,0 +1,149 @@
+modules:
+  rovo:agent:
+  - key: triage-copilot
+    name: Triage Copilot
+    description: Triages a Jira issue — definition-of-done checklist, severity score
+      with evidence, and an assignee suggestion from Teamwork Graph. Possible duplicates
+      are reported last, as supporting information only. Proposes, never applies.
+    prompt: resource:prompt;prompt.md
+    conversationStarters:
+    - Triage this issue
+    - Who should work on this?
+    - Is this a duplicate?
+    actions:
+    - get-issue
+    - get-dod-checklist
+    - score-severity
+    - suggest-assignee
+    - find-similar-issues
+    - apply-triage
+  action:
+  - key: get-issue
+    name: Get issue
+    description: What is this Jira issue about? Reads one issue by key — summary,
+      description, type, priority, status, assignee, reporter, components, labels,
+      estimate, parent link, and recent comments.
+    actionVerb: GET
+    function: get-issue-fn
+  - key: get-dod-checklist
+    name: Get definition-of-done checklist
+    description: 'Is this issue ready to work on? Definition-of-done checklist: acceptance
+      criteria, assignee, priority, estimate, parent link, repro steps for bugs, labels
+      and components. Each item is pass, fail, or not applicable.'
+    actionVerb: GET
+    function: get-dod-checklist-fn
+  - key: score-severity
+    name: Score severity
+    description: How severe is this issue? Computes a deterministic severity score
+      from 0 to 100 with a band (Critical, High, Medium, Low) and the evidence behind
+      every point.
+    actionVerb: GET
+    function: score-severity-fn
+  - key: suggest-assignee
+    name: Suggest assignee
+    description: Who should work on this issue? Ranks up to three candidates from
+      Teamwork Graph teams and workload, recent commenters, and past assignees of
+      the same component or labels, with reasons. Never assigns anyone by itself.
+    actionVerb: GET
+    function: suggest-assignee-fn
+  - key: find-similar-issues
+    name: Find similar issues
+    description: Are there possible duplicates? JQL text search on the summary keywords,
+      then token-overlap similarity on summary and description. 0.80 or higher is
+      a likely duplicate, 0.50-0.80 possibly related. Supporting information only.
+    actionVerb: GET
+    function: find-similar-issues-fn
+  - key: apply-triage
+    name: Apply triage
+    description: 'Apply the confirmed triage: set the chosen assignee, post the triage
+      summary as a comment, and link the confirmed duplicates. Requires confirmed
+      set to true, or it errors before touching Jira. Only call after the user has
+      seen the preview and said yes.'
+    actionVerb: CREATE
+    function: apply-triage-fn
+    inputs:
+      issueKey:
+        title: Issue key
+        type: string
+        description: The key of the issue to triage, e.g. PLAT-33510.
+        required: true
+      assigneeAccountId:
+        title: Assignee account ID
+        type: string
+        description: Atlassian account ID of the person to assign. Omit to leave the assignee unchanged.
+        required: false
+      comment:
+        title: Triage comment
+        type: string
+        description: The triage summary text to post as a comment on the issue.
+        required: false
+      duplicateKeys:
+        title: Duplicate issue keys
+        type: string
+        description: Comma-separated keys of the duplicate issues to link, e.g. PLAT-33510. Only keys the user confirmed in the preview.
+        required: false
+      confirmed:
+        title: Confirmed
+        type: boolean
+        description: Must be true. Only set to true after the user has seen the exact preview of what will be written and said yes.
+        required: true
+  rovo:mcp:
+  - key: triage-copilot-mcp
+    name: Triage Copilot MCP
+    tools:
+    - get-issue
+    - get-dod-checklist
+    - score-severity
+    - suggest-assignee
+    - find-similar-issues
+    - apply-triage
+  jira:issuePanel:
+  - key: triage-panel
+    resource: main
+    resolver:
+      function: panel-resolver
+    render: native
+    title: Triage Copilot
+    icon: resource:icons;icon.svg
+  function:
+  - key: get-issue-fn
+    handler: index.getIssue
+  - key: get-dod-checklist-fn
+    handler: index.getDodChecklist
+  - key: score-severity-fn
+    handler: index.scoreSeverity
+  - key: suggest-assignee-fn
+    handler: index.suggestAssignee
+  - key: find-similar-issues-fn
+    handler: index.findSimilarIssues
+  - key: apply-triage-fn
+    handler: index.applyTriage
+  - key: panel-resolver
+    handler: index.panelResolver
+resources:
+- key: main
+  path: src/frontend/index.jsx
+- key: prompt
+  path: prompts
+- key: icons
+  path: static
+permissions:
+  scopes:
+  - read:jira-work
+  - write:jira-work
+  - read:jira-user
+  - read:comment:jira
+  - write:comment:jira
+  - read:issue.transition:jira
+  - read:graph:issue:jira
+  - read:graph:issue-status:jira
+  - read:graph:issue-comment:jira
+  - read:graph:user:atlassian
+  - read:graph:team:atlassian
+  - read:graph:goal:atlassian
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/1146f277-7b1f-4320-a0f8-19ad51c9ccb8

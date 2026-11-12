@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/bridge": "^5.0.0",
+    "@forge/react": "^11.0.0",
+    "@forge/resolver": "^1.6.0",
+    "react": "^18.2.0"
+  },
+  "description": "Triage Copilot — a Forge app for Jira that triages issues: definition-of-done checklist, severity calibration, and Teamwork Graph assignee suggestion. Duplicate detection is a supporting feature only.",
+  "main": "src/index.js",
+  "name": "triage-copilot",
+  "private": true,
+  "scripts": {
+    "lint": "forge lint"
+  },
+  "version": "0.1.0"
+}
