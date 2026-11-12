@@ -20,7 +20,7 @@ Positioning guardrail: **duplicate detection is a supporting feature only.** The
 
 Runtime: `nodejs24.x`. Packages: `@forge/api` 8.5.0 (for `requestJira` + `requestTeamworkGraph`), `@forge/cli` 15.x for build (needs Node 22.23.4+).
 
-## 2. Scopes (10 total, cap is 50)
+## 2. Scopes (9 total, cap is 50)
 
 ```
 read:jira-work        # read issue, JQL search
@@ -30,15 +30,17 @@ read:comment:jira     # read comment history (ownership signals)
 write:comment:jira    # post triage result as a comment
 read:graph:issue:jira
 read:graph:issue-status:jira
-read:graph:issue-comment:jira
 read:graph:user:atlassian
 read:graph:team:atlassian
 ```
 
-Two scopes were removed in Phase 3 after a usage audit proved them
-unused: `read:issue.transition:jira` (no transition code anywhere) and
+Three scopes were removed after usage audits proved them unused:
+`read:issue.transition:jira` (no transition code anywhere) and
 `read:graph:goal:atlassian` (only the never-called goals query needed
-it; that query was removed with the scope).
+it; that query was removed with the scope) in Phase 3, and
+`read:graph:issue-comment:jira` (only the never-called
+work-item-comments query needed it; that query was removed with the
+scope) in the post-review fix.
 
 All reads run **asUser** (permission-filtered to what the user can see). All writes run **asUser** too — nothing is ever written as the app. Teamwork Graph calls use `api.asUser().requestTeamworkGraph(...)` (the only supported path).
 
@@ -75,8 +77,8 @@ MCP client call ───────┘
   │ 4. ASSIGNEE (Teamwork Graph + Jira signals)            │
   │    - TWG: team members → their assigned work items     │
   │      (atlassianUserAssignedJiraWorkItems, 25/page)      │
-  │    - TWG: recent commenters on this issue              │
-  │      (jiraWorkItemComments, P90D)                       │
+  │    - Jira REST: recent commenters on this issue        │
+  │      (comments from the issue read, P90D)               │
   │    - Jira: past assignees of same component/labels     │
   │    Rank by: prior work on same component, recent       │
   │    activity on similar issues, current open workload   │
@@ -120,12 +122,12 @@ Automation rules cannot call CREATE/UPDATE/DELETE/TRIGGER actions at all (Forge 
 ## 5. Teamwork Graph usage (assignee suggestion)
 
 - Client: `src/twg.js` — one call (`twg`) + paged reader (`twgAll`), copied pattern from the measured Codegeist tutorial: operation names `[company]_[operation]` (ours: `triagecopilot_*`, company ≥3, operation ≥4), up to 3 retries on transient errors with backoff, `complete: false` when paging stops early, and "could not read" (never "nothing there") on empty+errors.
-- Curated queries consumed by the assignee ranking:
-  `atlassianUserAssignedJiraWorkItems` (open workload),
+- Curated queries consumed by the assignee ranking (the complete set,
+  three): `atlassianUserAssignedJiraWorkItems` (open workload),
   `atlassianUserInTeams` (reporter's teams), `atlassianTeamMembers`
-  (team members). `jiraWorkItemComments` is defined in `twg.js` for
-  future use; the ranking reads comments from the Jira REST issue read
-  (`src/jira.js`), not from TWG. Field names were verified in Phase 3
+  (team members). The ranking reads comments from the Jira REST issue
+  read (`src/jira.js`), not from TWG. Field names were verified in
+  Phase 3
   against the live TWG schema downloaded from the real demo site
   (`one-atlas-aggc.atlassian.net/gateway/api/graphql/twg/schema`,
   172 KB): correct argument/field names are `teamAri`,
@@ -142,7 +144,7 @@ Automation rules cannot call CREATE/UPDATE/DELETE/TRIGGER actions at all (Forge 
 
 | Bonus ($1,500 each, 6 winners) | How we qualify | Evidence in the app |
 |---|---|---|
-| Best Rovo / Assignable agents | `rovo:agent` + reusable GET actions other agents can call | Agent + actions in manifest; demo in Rovo chat |
+| Best Agents - Rovo/Assignable agents | `rovo:agent` + reusable GET actions other agents can call | Agent + actions in manifest; demo in Rovo chat |
 | Best app with Atlassian MCP | Tools exposed through `rovo:mcp` | MCP server verified end-to-end from an external client (Glama MCP Inspector) in Phase 3 |
 | Best Teamwork Graph integration | Consumes data from the Teamwork Graph API (assignee suggestion) | `suggest-assignee` reads TWG; demo shows it |
 | Best Marketplace published app | **NOT targeted in v1** | Listing requires review; a licensed/listing-submitted app cannot use an installation link, so chasing it would force a second unlicensed copy of the app. Defer to post-hackathon. |
