@@ -17,10 +17,17 @@
 //   - IDs are ARIs: user ari:cloud:identity::user/{accountId}, work item
 //     ari:cloud:jira:{cloudId}:issue/{issueId}.
 //
-// Curated-query field names follow the Phase 1 notes; they must be verified
-// against the live TWG schema downloaded from a real site in Phase 3. The
-// parsing below is defensive: an unexpected shape yields "could not read",
-// never a crash.
+// Curated-query field names were verified against the live TWG schema
+// downloaded from a real site in Phase 3 (one-atlas-aggc.atlassian.net,
+// /gateway/api/graphql/twg/schema, 172 KB) and confirmed by a live panel
+// check: the assignee ranking returns real team + workload data. The
+// parsing below stays defensive: an unexpected shape yields "could not
+// read", never a crash.
+//
+// Queries actually consumed by the assignee ranking: assignedWorkItems
+// (open workload), userTeams (reporter's teams), teamMembers (team
+// members). workItemComments is defined for future use; comments for the
+// ranking come from the Jira REST issue read (src/jira.js), not TWG.
 const api = require('@forge/api');
 
 const PAGE_SIZE = 25;
@@ -230,22 +237,6 @@ const WORK_ITEM_COMMENTS_QUERY = `
   }
 `;
 
-const WORK_ITEM_GOALS_QUERY = `
-  query triagecopilot_workItemGoals($workItemId: ID!) {
-    jiraWorkItemGoals(id: $workItemId) {
-      edges {
-        node {
-          ... on AtlassianGoal {
-            id
-            name
-          }
-        }
-      }
-      pageInfo { hasNextPage endCursor }
-    }
-  }
-`;
-
 // Convenience wrappers. Each returns the twgAll shape
 // { items, complete, readable, errors }.
 function assignedWorkItems(userId) {
@@ -284,19 +275,6 @@ function workItemComments(workItemId) {
   );
 }
 
-async function workItemGoals(workItemId) {
-  const result = await twg(
-    'triagecopilot_workItemGoals',
-    WORK_ITEM_GOALS_QUERY,
-    { workItemId },
-  );
-  if (!result.ok) {
-    return { items: [], complete: false, readable: false, errors: result.errors };
-  }
-  const { items } = readConnection(result.data.jiraWorkItemGoals);
-  return { items, complete: true, readable: true, errors: null };
-}
-
 // Build a user ARI from a Jira accountId.
 function userAri(accountId) {
   return `ari:cloud:identity::user/${accountId}`;
@@ -309,7 +287,6 @@ module.exports = {
   userTeams,
   teamMembers,
   workItemComments,
-  workItemGoals,
   userAri,
   PAGE_SIZE,
   MAX_PAGES,
