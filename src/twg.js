@@ -24,10 +24,10 @@
 // parsing below stays defensive: an unexpected shape yields "could not
 // read", never a crash.
 //
-// Queries actually consumed by the assignee ranking: assignedWorkItems
-// (open workload), userTeams (reporter's teams), teamMembers (team
-// members). workItemComments is defined for future use; comments for the
-// ranking come from the Jira REST issue read (src/jira.js), not TWG.
+// Queries consumed by the assignee ranking — the complete set, three:
+// assignedWorkItems (open workload), userTeams (reporter's teams),
+// teamMembers (team members). Comments for the ranking come from the
+// Jira REST issue read (src/jira.js), not TWG.
 const api = require('@forge/api');
 
 const PAGE_SIZE = 25;
@@ -217,26 +217,6 @@ const TEAM_MEMBERS_QUERY = `
   }
 `;
 
-const WORK_ITEM_COMMENTS_QUERY = `
-  query triagecopilot_workItemComments($workItemId: ID!, $first: Int, $after: String) {
-    jiraWorkItemComments(id: $workItemId, first: $first, after: $after) {
-      edges {
-        node {
-          ... on JiraWorkItemComment {
-            id
-            author {
-              id
-              name
-            }
-            createdAt
-          }
-        }
-      }
-      pageInfo { hasNextPage endCursor }
-    }
-  }
-`;
-
 // Convenience wrappers. Each returns the twgAll shape
 // { items, complete, readable, errors }.
 function assignedWorkItems(userId) {
@@ -266,15 +246,6 @@ function teamMembers(teamAri) {
   );
 }
 
-function workItemComments(workItemId) {
-  return twgAll(
-    'triagecopilot_workItemComments',
-    WORK_ITEM_COMMENTS_QUERY,
-    { workItemId },
-    'jiraWorkItemComments',
-  );
-}
-
 // Build a user ARI from a Jira accountId.
 function userAri(accountId) {
   return `ari:cloud:identity::user/${accountId}`;
@@ -286,7 +257,6 @@ module.exports = {
   assignedWorkItems,
   userTeams,
   teamMembers,
-  workItemComments,
   userAri,
   PAGE_SIZE,
   MAX_PAGES,
