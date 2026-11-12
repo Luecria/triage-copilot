@@ -136,7 +136,6 @@ permissions:
   - write:comment:jira
   - read:graph:issue:jira
   - read:graph:issue-status:jira
-  - read:graph:issue-comment:jira
   - read:graph:user:atlassian
   - read:graph:team:atlassian
 app:
