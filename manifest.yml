@@ -134,13 +134,11 @@ permissions:
   - read:jira-user
   - read:comment:jira
   - write:comment:jira
-  - read:issue.transition:jira
   - read:graph:issue:jira
   - read:graph:issue-status:jira
   - read:graph:issue-comment:jira
   - read:graph:user:atlassian
   - read:graph:team:atlassian
-  - read:graph:goal:atlassian
 app:
   runtime:
     name: nodejs24.x
